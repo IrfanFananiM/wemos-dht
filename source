@@ -1,0 +1,93 @@
+#include <PubSubClient.h> //libary wemos
+#include <ESP8266WiFi.h>  //library mqtt
+#include <DHT_U.h> //sensor suhu
+#include <DHT.h>
+#include "DHT.h"
+
+const char* ssid = "lab iot on the road";
+const char* password = "123abc?000";
+const char* mqtt_server = "192.168.43.251"; //server
+const char* mqtt_user = "adit";
+const char* mqtt_password = "skripsi";
+
+WiFiClient espClient; //bawaan mqtt
+PubSubClient client(espClient);
+
+#define DHTPIN 2 //D4
+#define DHTTYPE DHT11
+DHT dht (DHTPIN, DHTTYPE);
+long lastMsg = 0;
+char msg[20];
+
+void receivedCallback(char* topic, byte* payload, unsigned int length) //perintah control
+{
+  Serial.print("Message received: ");
+  Serial.println(topic);
+  String payloadtemp;
+
+  Serial.print("payload: ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+
+void mqttconnect() {
+
+  while (!client.connected()) {
+    Serial.print("MQTT connecting ...");
+
+    String clientId = "ESP32Client";
+
+    if (client.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
+      Serial.println("connected");
+    } else{
+      Serial.print("failed, status code =");
+      Serial.print(client.state());
+      Serial.println("try again in 5 seconds");
+
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+ dht.begin();
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(receivedCallback);
+}
+
+void loop() {
+
+  if (!client.connected()) {
+    mqttconnect();
+  }
+  client.loop();
+  long t = dht.readTemperature(); //variabel baca temperature
+  long h = dht.readHumidity(); //variabel baca kelembapan
+
+  Serial.print("Temperature: ");
+  Serial.println(t);
+  Serial.print("Kelembapan: ");
+  Serial.println(h);
+   client.publish("adit/temperature", String(t).c_str(), true); //Mengirim data temperature
+   client.publish("adit/humidity", String(h).c_str(), true); //Mengirim data kelembapan
+     long now = millis();
+  if (now - lastMsg > 3000) {
+    lastMsg = now;
+
+    }
+  }
